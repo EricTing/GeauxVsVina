@@ -49,25 +49,33 @@ def toRequiredStr(num_str, precision='0.001'):
     return str(decimal.Decimal(num_str).quantize(decimal.Decimal(precision)))
 
 
-def getOrderedSdf(vina_ofn, vina_ifn, init_sdf_fn):
-    init_sdf = [l.rstrip() for l in file(init_sdf_fn)]
-    vina_out = [l.rstrip() for l in file(vina_ofn)]
-    vina_in = [l.rstrip() for l in file(vina_ifn)]
-
+def getPredConfs(vina_out):
+    """[str] -> [[str]]
+    Keyword Arguments:
+    vina_out -- get the atom zones for each conf in pdbqt
+    """
+    pred_confs = []
     predicted_coords = []
     for l in vina_out:
-        if "ATOM" in l:
+        if 'MODEL' in l:
+            predicted_coords = []  # clear
+        if 'ATOM' in l:
             predicted_coords.append(l)
-        if "MODEL 2" in l:
-            break
+        if 'ENDMDL' in l:
+            pred_confs.append(predicted_coords)
+    
+    return pred_confs
 
+
+def getOrderedSdf(sdf, atom_zone, vina_in):
+    init_sdf = list(sdf)        # need a copy since list slicing is used
     native_coords = []
     for l in vina_in:
         if "ATOM" in l:
             native_coords.append(l)
 
-    assert len(predicted_coords) == len(native_coords)
-    for tup in zip(predicted_coords, native_coords):
+    assert len(atom_zone) == len(native_coords)
+    for tup in zip(atom_zone, native_coords):
         assert pdb_atom_type(tup[0]) == pdb_atom_type(tup[1])
 
     init_sdf_coords = []
@@ -89,7 +97,7 @@ def getOrderedSdf(vina_ofn, vina_ifn, init_sdf_fn):
     def search4NewCoords(old_xyz_str):
         for idx, line in enumerate(native_coords):
             if old_xyz_str == pdb_atom_coords(line):
-                new_xyz_str = pdb_atom_coords(predicted_coords[idx])
+                new_xyz_str = pdb_atom_coords(atom_zone[idx])
                 return new_xyz_str
 
     predicted_sdf_coords = [search4NewCoords(c) for
@@ -109,22 +117,32 @@ def getOrderedSdf(vina_ofn, vina_ifn, init_sdf_fn):
 
     return init_sdf
 
+
 if __name__ == "__main__":
     import sys
     my_id = sys.argv[1]
 
-    vina_ifn = '/ddnB/work/jaydy/working/InitialSdf/' + my_id + '_init.pdbqt'
-    init_sdf_fn = "/ddnB/work/jaydy/working/InitialSdf/" + my_id + "_init.sdf"
+    vina_ifn = '/work/jaydy/working/InitialSdf/' + my_id + '_init.pdbqt'
+    init_sdf_fn = "/work/jaydy/working/InitialSdf/" + my_id + "_init.sdf"
     vina_out_dir = '/home/jaydy/work/working/VinaResult/' + my_id
+    vina_out_ofns = glob(vina_out_dir + '/*-out.pdbqt')
 
-    print "selecting results in", vina_out_dir
-    best_vina_ofn = chooseBestVinaResult(vina_out_dir)
+    init_sdf = [l.rstrip() for l in file(init_sdf_fn)]
+    vina_in = [l.rstrip() for l in file(vina_ifn)]
 
-    print "restoring order from", best_vina_ofn
-    ordered_sdf = getOrderedSdf(best_vina_ofn, vina_ifn, init_sdf_fn)
+    all_atom_zones = []
+    for vina_ofn in vina_out_ofns:
+        vina_out = [l.rstrip() for l in file(vina_ofn)]
+        pred_confs = getPredConfs(vina_out)
+        all_atom_zones += pred_confs
 
-    ordered_sdf_ofn = vina_out_dir + '/' + my_id + '_vina.sdf'
-    with open(ordered_sdf_ofn, 'w') as f:
-        for line in ordered_sdf:
-            f.write(line + "\n")
-    print "writing to", ordered_sdf_ofn
+    ordered_sdfs = []
+    for atom_zone in all_atom_zones:
+        ordered_sdfs.append(getOrderedSdf(init_sdf, atom_zone, vina_in))
+
+    for idx, sdf in enumerate(ordered_sdfs):
+        vina_sdf_ofn = vina_out_dir + '/' + my_id + '_' + str(idx) + '.sdf'
+        with open(vina_sdf_ofn, 'w') as f:
+            for l in sdf:
+                f.write(l + "\n")
+        print "writing to", vina_sdf_ofn
