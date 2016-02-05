@@ -27,7 +27,7 @@ def chooseBestVinaResult(vina_out_dir):
 
 def pdb_atom_type(one_pdbqt_line):
     """str -> [str]
-    
+
     get the atom characteristics of one line in pdbqt file
     """
     type_zone = one_pdbqt_line[:29] + one_pdbqt_line[55:]
@@ -36,7 +36,7 @@ def pdb_atom_type(one_pdbqt_line):
 
 def pdb_atom_coords(one_pdbqt_line):
     """str -> [str]
-    
+
     get the atom coords of one line in pdbqt file
     """
     coords_zone = one_pdbqt_line[30:55]
@@ -63,12 +63,12 @@ def getPredConfs(vina_out):
             predicted_coords.append(l)
         if 'ENDMDL' in l:
             pred_confs.append(predicted_coords)
-    
+
     return pred_confs
 
 
 def getOrderedSdf(sdf, atom_zone, vina_in):
-    init_sdf = list(sdf)        # need a copy since list slicing is used
+    init_sdf = list(sdf)  # need a copy since list slicing is used
     native_coords = []
     for l in vina_in:
         if "ATOM" in l:
@@ -85,7 +85,7 @@ def getOrderedSdf(sdf, atom_zone, vina_in):
         if "OpenBabel" in line:
             marker_idx = idx
             tot_atoms = int(init_sdf[idx + 2].split()[0])
-            init_sdf_coords = init_sdf[idx + 3: idx + 3 + tot_atoms]
+            init_sdf_coords = init_sdf[idx + 3:idx + 3 + tot_atoms]
             break
 
     rounded_init_sdf_coords = []
@@ -100,8 +100,8 @@ def getOrderedSdf(sdf, atom_zone, vina_in):
                 new_xyz_str = pdb_atom_coords(atom_zone[idx])
                 return new_xyz_str
 
-    predicted_sdf_coords = [search4NewCoords(c) for
-                            c in rounded_init_sdf_coords]
+    predicted_sdf_coords = [search4NewCoords(c)
+                            for c in rounded_init_sdf_coords]
     assert len(predicted_sdf_coords) == len(rounded_init_sdf_coords)
 
     width = 10
@@ -113,7 +113,7 @@ def getOrderedSdf(sdf, atom_zone, vina_in):
         new_line = formated_xyz_str + old_line[30:]
         formated_coords.append(new_line)
 
-    init_sdf[marker_idx + 3: marker_idx + 3 + tot_atoms] = formated_coords
+    init_sdf[marker_idx + 3:marker_idx + 3 + tot_atoms] = formated_coords
 
     return init_sdf
 
