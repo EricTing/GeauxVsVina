@@ -56,13 +56,19 @@ def getPredConfs(vina_out):
     """
     pred_confs = []
     predicted_coords = []
+    multi_model = False
+
     for l in vina_out:
         if 'MODEL' in l:
             predicted_coords = []  # clear
-        if 'ATOM' in l:
+        if 'ATOM' in l or 'LIG' in l:
             predicted_coords.append(l)
         if 'ENDMDL' in l:
+            multi_model = True
             pred_confs.append(predicted_coords)
+
+    if not multi_model:
+        pred_confs.append(predicted_coords)
 
     return pred_confs
 
